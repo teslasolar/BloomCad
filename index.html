@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bloom CAD · BLM-FABRIC v1.0</title>
+<style>
+  :root{
+    --bg:#0e0d12; --panel:#17161d; --ink:#e8e6df; --mute:#8a8798;
+    --accent:#d4a24c; --seam:#4ca8d4; --dart:#d44c7a; --grain:#6ad16a;
+    --line:#2a2833; --ring0:#d4a24c;--ring1:#c97b4c;--ring2:#b85c6e;
+    --ring3:#8e5ab8;--ring4:#4c7cc9;--ring5:#4cb89a;--ring6:#8ec94c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.5 ui-monospace,'SF Mono',Menlo,monospace;
+       background:var(--bg);color:var(--ink);min-height:100vh}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);
+         display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:15px;letter-spacing:.08em}
+  h1 .a{color:var(--accent)}
+  .sub{color:var(--mute);font-size:11px}
+  main{display:grid;grid-template-columns:280px 1fr 300px;gap:1px;
+       background:var(--line);min-height:calc(100vh - 54px)}
+  aside,section{background:var(--panel);padding:16px;overflow:auto}
+  section{background:#0e0d12;display:flex;flex-direction:column}
+  h2{font-size:11px;letter-spacing:.15em;color:var(--mute);
+     text-transform:uppercase;margin:0 0 10px;font-weight:500}
+  .grp{margin-bottom:20px}
+  .row{display:flex;justify-content:space-between;align-items:center;
+       gap:8px;padding:4px 0;font-size:12px}
+  .row label{color:var(--mute);display:flex;align-items:center;gap:6px}
+  .swatch{width:8px;height:8px;border-radius:50%}
+  input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+  .val{color:var(--ink);min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+  select,button{background:#24222c;color:var(--ink);border:1px solid var(--line);
+                padding:7px 10px;font:inherit;border-radius:4px;cursor:pointer;width:100%}
+  button:hover,select:hover{border-color:var(--accent)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .canvas-wrap{flex:1;position:relative;overflow:hidden;background:
+    radial-gradient(ellipse at center,#16151b 0%,#0a090d 100%)}
+  svg.pattern{width:100%;height:100%;display:block}
+  .piece{fill:#1c1a23;stroke:var(--accent);stroke-width:1.2;
+         transition:fill .2s;cursor:pointer}
+  .piece:hover{fill:#2a2733}
+  .piece.sel{fill:#332a1e;stroke-width:2}
+  .dart{stroke:var(--dart);stroke-width:1.2;fill:none;stroke-dasharray:3 2}
+  .seam-mark{stroke:var(--seam);stroke-width:2;fill:none}
+  .grain{stroke:var(--grain);stroke-width:.8;stroke-dasharray:4 3}
+  .notch{stroke:var(--ink);stroke-width:1;fill:none}
+  .lbl{fill:var(--mute);font:10px ui-monospace,monospace;pointer-events:none}
+  .plbl{fill:var(--ink);font:11px ui-monospace,monospace;
+        text-anchor:middle;pointer-events:none;font-weight:500}
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .tab{padding:8px 12px;cursor:pointer;color:var(--mute);font-size:11px;
+       letter-spacing:.1em;border-bottom:2px solid transparent;text-transform:uppercase}
+  .tab.on{color:var(--accent);border-color:var(--accent)}
+  .fold-box{background:#0a090d;border:1px solid var(--line);padding:10px;
+            border-radius:4px;word-break:break-all;font-size:11px;
+            line-height:1.5;color:var(--accent)}
+  .kv{display:flex;justify-content:space-between;padding:3px 0;font-size:11px}
+  .kv span:first-child{color:var(--mute)}
+  .kv span:last-child{color:var(--ink);font-variant-numeric:tabular-nums}
+  .ring-lgnd{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+  .ring-lgnd div{text-align:center;font-size:9px;padding:4px 2px;
+                 border-radius:3px;color:#000;font-weight:600}
+  .hud{position:absolute;top:10px;left:10px;background:#0a090dcc;
+       padding:6px 10px;border:1px solid var(--line);border-radius:4px;
+       font-size:10px;color:var(--mute);letter-spacing:.1em}
+  .meta{position:absolute;bottom:10px;right:10px;background:#0a090dcc;
+        padding:8px 12px;border:1px solid var(--line);border-radius:4px;
+        font-size:10px;color:var(--mute);max-width:260px;line-height:1.6}
+  .meta b{color:var(--accent);font-weight:500}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--mute);
+          padding:8px 12px;border-top:1px solid var(--line);background:#0a090d}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:12px;height:2px;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1><span class="a">⚘</span> BLOOM CAD <span class="sub">· BLM-FABRIC v1.0 · 2D↔3D pattern standard</span></h1>
+  </div>
+  <div class="sub">dart=107⁻ᵈ · seam=103ˢ · ease=κ · ring primes 2·3·5·7·11·13·17</div>
+</header>
+
+<main>
+  <!-- LEFT: garment + body -->
+  <aside>
+    <div class="grp">
+      <h2>Garment</h2>
+      <select id="garment">
+        <option value="tshirt">T-Shirt · R0+R1+R2</option>
+        <option value="dress">A-Line Dress · R0+R1+R3+R4</option>
+        <option value="skirt">Pencil Skirt · R4+R5</option>
+        <option value="trouser">Trouser · R4+R5+R6</option>
+        <option value="jacket">Blazer · all rings</option>
+        <option value="gown">Ball Gown · all seven</option>
+      </select>
+      <div class="btns">
+        <button id="addDart">+ Dart</button>
+        <button id="addSeam">+ Seam</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>Body Bloom · ring exponents</h2>
+      <div id="rings"></div>
+      <div class="ring-lgnd" id="ringLgnd"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Ease κ per ring</h2>
+      <div id="ease"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Size Grading</h2>
+      <select id="size">
+        <option value="-2">XS  (Δ −1.0)</option>
+        <option value="-1">S   (Δ −0.5)</option>
+        <option value="0" selected>M   (base)</option>
+        <option value="1">L   (Δ +0.5)</option>
+        <option value="2">XL  (Δ +1.0)</option>
+        <option value="3">XXL (Δ +1.5)</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <h2>Material</h2>
+      <select id="material">
+        <option value="cotton">Cotton Poplin · drape .4 stretch .02</option>
+        <option value="jersey" selected>Cotton Jersey · drape .65 stretch .15</option>
+        <option value="silk">Silk Charmeuse · drape .85 stretch .05</option>
+        <option value="denim">Denim · drape .25 stretch .02</option>
+        <option value="wool">Wool Crepe · drape .55 stretch .08</option>
+      </select>
+    </div>
+  </aside>
+
+  <!-- CENTER: pattern canvas -->
+  <section>
+    <div class="tabs">
+      <div class="tab on" data-view="flat">FLAT · 2D PATTERN</div>
+      <div class="tab" data-view="drape">DRAPE · 3D PREVIEW</div>
+      <div class="tab" data-view="layout">LAYOUT · CUTTING</div>
+    </div>
+    <div class="canvas-wrap">
+      <div class="hud" id="hud">READY · click panel to select</div>
+      <svg class="pattern" id="svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>panel outline</span>
+      <span><i style="background:var(--dart);border-top:1px dashed var(--dart)"></i>dart (107⁻ᵈ)</span>
+      <span><i style="background:var(--seam)"></i>seam (103ˢ)</span>
+      <span><i style="background:var(--grain)"></i>grain line</span>
+    </div>
+  </section>
+
+  <!-- RIGHT: fold info -->
+  <aside>
+    <div class="grp">
+      <h2>Garment Fold</h2>
+      <div class="fold-box" id="foldBox">—</div>
+    </div>
+
+    <div class="grp">
+      <h2>Factorization</h2>
+      <div id="factors"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Metrics</h2>
+      <div id="metrics"></div>
+    </div>
+
+    <div class="grp">
+      <h2>Selected Piece</h2>
+      <div id="sel" style="color:var(--mute);font-size:11px">(none)</div>
+    </div>
+
+    <div class="grp">
+      <h2>Construction Recipe</h2>
+      <div id="recipe" style="font-size:10px;color:var(--mute);line-height:1.8"></div>
+    </div>
+
+    <div class="grp">
+      <button id="export">Export .bfabric (JSON)</button>
+    </div>
+  </aside>
+</main>
+
+<script>
+const PRIMES=[2,3,5,7,11,13,17];
+const RING_NAMES=['torso','shoulder','sleeve','neck⚡','waist','leg','extrem'];
+const RING_COLORS=['--ring0','--ring1','--ring2','--ring3','--ring4','--ring5','--ring6'];
+const DART_P=107, SEAM_P=103;
+
+const MATERIALS={
+  cotton:{drape:.4,stretch:.02,name:'Cotton Poplin',fold:23n},
+  jersey:{drape:.65,stretch:.15,name:'Cotton Jersey',fold:29n},
+  silk:{drape:.85,stretch:.05,name:'Silk Charmeuse',fold:31n},
+  denim:{drape:.25,stretch:.02,name:'Denim',fold:37n},
+  wool:{drape:.55,stretch:.08,name:'Wool Crepe',fold:41n},
+};
+
+// Garment templates: panels with rings, outlines (normalized 0-1 coords), darts, seams
+const TEMPLATES={
+  tshirt:{
+    name:'T-Shirt',rings:[5,3,2,2,4,0,1],
+    panels:[
+      {id:'front',ring:0,label:'FRONT',poly:[[.05,.1],[.25,.1],[.3,.18],[.35,.15],[.35,.75],[.05,.75],[.05,.2]]},
+      {id:'back',ring:0,label:'BACK',poly:[[.42,.1],[.72,.1],[.72,.75],[.42,.75],[.42,.15],[.46,.12]]},
+      {id:'sleeve',ring:2,label:'SLEEVE',poly:[[.78,.15],[.95,.2],[.95,.5],[.82,.55],[.78,.4]]},
+      {id:'neckband',ring:3,label:'NECK',poly:[[.78,.62],[.95,.62],[.95,.68],[.78,.68]]},
+    ],
+    darts:[],
+    seams:[['front','back','STRAIGHT',1],['front','sleeve','SET_IN',2],['front','neckband','STRAIGHT',1]]
+  },
+  dress:{
+    name:'A-Line Dress',rings:[5,3,0,2,4,0,1],
+    panels:[
+      {id:'bodicef',ring:0,label:'BODICE F',poly:[[.05,.08],[.28,.08],[.3,.16],[.32,.4],[.05,.42],[.05,.18]]},
+      {id:'bodiceb',ring:0,label:'BODICE B',poly:[[.38,.08],[.6,.08],[.6,.42],[.38,.4],[.38,.14]]},
+      {id:'skirtf',ring:4,label:'SKIRT F',poly:[[.03,.5],[.35,.5],[.42,.92],[-.04,.92]]},
+      {id:'skirtb',ring:4,label:'SKIRT B',poly:[[.44,.5],[.72,.5],[.78,.92],[.37,.92]]},
+      {id:'sleeve',ring:2,label:'SLEEVE',poly:[[.82,.1],[.96,.14],[.96,.5],[.82,.54],[.8,.3]]},
+      {id:'collar',ring:3,label:'COLLAR',poly:[[.8,.64],[.97,.64],[.97,.72],[.8,.72]]},
+    ],
+    darts:[{piece:'bodicef',ring:0,pos:[.16,.28],depth:1.5,len:.1,type:'BUST'},
+           {piece:'bodiceb',ring:4,pos:[.48,.34],depth:1,len:.08,type:'WAIST'}],
+    seams:[['bodicef','bodiceb','STRAIGHT',1],['bodicef','skirtf','STRAIGHT',1],
+           ['bodiceb','skirtb','STRAIGHT',1],['bodicef','sleeve','RAGLAN',2],
+           ['bodicef','collar','PRINCESS',2]]
+  },
+  skirt:{
+    name:'Pencil Skirt',rings:[0,0,0,0,4,3,1],
+    panels:[
+      {id:'front',ring:4,label:'FRONT',poly:[[.1,.1],[.4,.1],[.44,.85],[.08,.85]]},
+      {id:'back',ring:4,label:'BACK',poly:[[.5,.1],[.8,.1],[.84,.85],[.48,.85]]},
+      {id:'waistband',ring:4,label:'WAISTBAND',poly:[[.1,.92],[.84,.92],[.84,.98],[.1,.98]]},
+    ],
+    darts:[{piece:'front',ring:4,pos:[.2,.2],depth:1.2,len:.12,type:'WAIST'},
+           {piece:'front',ring:4,pos:[.3,.2],depth:1.2,len:.12,type:'WAIST'},
+           {piece:'back',ring:4,pos:[.6,.2],depth:1.5,len:.14,type:'WAIST'},
+           {piece:'back',ring:4,pos:[.7,.2],depth:1.5,len:.14,type:'WAIST'}],
+    seams:[['front','back','STRAIGHT',1],['front','waistband','STRAIGHT',1]]
+  },
+  trouser:{
+    name:'Trouser',rings:[0,0,0,0,4,5,2],
+    panels:[
+      {id:'frontl',ring:5,label:'FRONT L',poly:[[.05,.08],[.25,.08],[.28,.9],[.1,.95],[.05,.5]]},
+      {id:'backl',ring:5,label:'BACK L',poly:[[.32,.06],[.55,.08],[.52,.95],[.34,.9],[.3,.5]]},
+      {id:'frontr',ring:5,label:'FRONT R',poly:[[.6,.08],[.8,.08],[.8,.5],[.75,.95],[.57,.9]]},
+      {id:'backr',ring:5,label:'BACK R',poly:[[.82,.08],[.95,.06],[.96,.5],[.92,.9],[.8,.95]]},
+    ],
+    darts:[{piece:'backl',ring:4,pos:[.4,.14],depth:1.5,len:.1,type:'WAIST'},
+           {piece:'backr',ring:4,pos:[.88,.14],depth:1.5,len:.1,type:'WAIST'}],
+    seams:[['frontl','backl','STRAIGHT',1],['frontl','frontr','STRAIGHT',1],
+           ['frontr','backr','STRAIGHT',1]]
+  },
+  jacket:{
+    name:'Blazer',rings:[5,3,2,3,4,0,2],
+    panels:[
+      {id:'front',ring:0,label:'FRONT',poly:[[.04,.08],[.22,.08],[.26,.18],[.28,.78],[.04,.82]]},
+      {id:'sidef',ring:0,label:'SIDE F',poly:[[.3,.1],[.42,.12],[.44,.8],[.3,.78]]},
+      {id:'back',ring:0,label:'BACK',poly:[[.48,.08],[.7,.08],[.7,.82],[.48,.8]]},
+      {id:'sleeveu',ring:2,label:'SLEEVE U',poly:[[.75,.08],[.88,.1],[.9,.55],[.75,.58]]},
+      {id:'sleevel',ring:2,label:'SLEEVE L',poly:[[.75,.62],[.9,.62],[.92,.9],[.75,.88]]},
+      {id:'collar',ring:3,label:'COLLAR',poly:[[.08,.88],[.44,.88],[.44,.96],[.08,.96]]},
+    ],
+    darts:[{piece:'front',ring:0,pos:[.14,.4],depth:2,len:.18,type:'BUST'},
+           {piece:'front',ring:4,pos:[.16,.65],depth:1.2,len:.1,type:'WAIST'},
+           {piece:'sidef',ring:4,pos:[.36,.5],depth:1,len:.15,type:'PRINCESS'}],
+    seams:[['front','sidef','PRINCESS',2],['sidef','back','STRAIGHT',1],
+           ['front','sleeveu','SET_IN',2],['sleeveu','sleevel','STRAIGHT',1],
+           ['front','collar','STRAIGHT',1]]
+  },
+  gown:{
+    name:'Ball Gown',rings:[6,3,3,3,5,4,2],
+    panels:[
+      {id:'bodicef',ring:0,label:'BODICE F',poly:[[.1,.05],[.3,.05],[.32,.15],[.33,.35],[.1,.38]]},
+      {id:'bodiceb',ring:0,label:'BODICE B',poly:[[.38,.05],[.55,.05],[.55,.38],[.38,.35]]},
+      {id:'gore1',ring:4,label:'GORE 1',poly:[[.02,.42],[.18,.42],[.24,.95],[-.05,.95]]},
+      {id:'gore2',ring:4,label:'GORE 2',poly:[[.2,.42],[.36,.42],[.42,.95],[.22,.95]]},
+      {id:'gore3',ring:4,label:'GORE 3',poly:[[.4,.42],[.56,.42],[.6,.95],[.4,.95]]},
+      {id:'gore4',ring:5,label:'GORE 4',poly:[[.58,.42],[.74,.42],[.78,.95],[.62,.95]]},
+      {id:'sleeve',ring:2,label:'PUFF SLV',poly:[[.78,.08],[.96,.12],[.96,.38],[.78,.42]]},
+      {id:'collar',ring:3,label:'NECK ⚡',poly:[[.78,.5],[.97,.5],[.97,.58],[.78,.58]]},
+    ],
+    darts:[{piece:'bodicef',ring:0,pos:[.16,.22],depth:2,len:.14,type:'BUST'},
+           {piece:'bodicef',ring:4,pos:[.22,.32],depth:1.5,len:.08,type:'WAIST'},
+           {piece:'bodiceb',ring:4,pos:[.46,.28],depth:1.5,len:.1,type:'WAIST'}],
+    seams:[['bodicef','bodiceb','PRINCESS',2],['bodicef','gore2','STRAIGHT',1],
+           ['gore1','gore2','STRAIGHT',1],['gore2','gore3','STRAIGHT',1],
+           ['gore3','gore4','STRAIGHT',1],['bodicef','sleeve','RAGLAN',2],
+           ['bodicef','collar','STRAIGHT',1]]
+  }
+};
+
+const state={
+  g:'tshirt', size:0, material:'jersey',
+  rings:[5,3,2,2,4,0,1],
+  ease:[.08,.04,.1,.06,.08,.08,.05],
+  selected:null,
+  customDarts:[], customSeams:[],
+  view:'flat'
+};
+
+// ---- UI build ----
+const $=id=>document.getElementById(id);
+const svg=$('svg');
+
+function buildRings(){
+  const r=$('rings'), e=$('ease'), l=$('ringLgnd');
+  r.innerHTML=''; e.innerHTML=''; l.innerHTML='';
+  for(let i=0;i<7;i++){
+    const c=getComputedStyle(document.documentElement).getPropertyValue(RING_COLORS[i]).trim();
+    r.insertAdjacentHTML('beforeend',
+      `<div class="row"><label><span class="swatch" style="background:${c}"></span>R${i} ${RING_NAMES[i]} (${PRIMES[i]})</label>
+       <input type="range" min="0" max="8" step="1" value="${state.rings[i]}" data-ring="${i}">
+       <span class="val" id="rv${i}">${state.rings[i]}</span></div>`);
+    e.insertAdjacentHTML('beforeend',
+      `<div class="row"><label>R${i}</label>
+       <input type="range" min="0" max="0.6" step="0.01" value="${state.ease[i]}" data-ease="${i}">
+       <span class="val" id="ev${i}">${state.ease[i].toFixed(2)}</span></div>`);
+    l.insertAdjacentHTML('beforeend',
+      `<div style="background:${c}" title="${RING_NAMES[i]}">${PRIMES[i]}</div>`);
+  }
+  r.querySelectorAll('input').forEach(inp=>inp.oninput=e=>{
+    state.rings[+e.target.dataset.ring]=+e.target.value;
+    $('rv'+e.target.dataset.ring).textContent=e.target.value; render();
+  });
+  e.querySelectorAll('input').forEach(inp=>inp.oninput=ev=>{
+    state.ease[+ev.target.dataset.ease]=+ev.target.value;
+    $('ev'+ev.target.dataset.ease).textContent=(+ev.target.value).toFixed(2); render();
+  });
+}
+
+// ---- Math ----
+function bigPow(base,exp){let r=1n,b=BigInt(base);for(let i=0;i<exp;i++)r*=b;return r;}
+
+function computeFold(){
+  const t=TEMPLATES[state.g];
+  const sizeDelta=state.size;
+  let fold=1n;
+  const factors=[];
+  // panel folds: prime^(ring_exp + size_delta)
+  t.panels.forEach(p=>{
+    const exp=Math.max(0,state.rings[p.ring]+sizeDelta);
+    const pf=bigPow(PRIMES[p.ring],exp);
+    fold*=pf;
+    factors.push({label:`${p.label} R${p.ring}`,prime:PRIMES[p.ring],exp});
+  });
+  // darts: divide by 107^depth
+  const allDarts=[...t.darts,...state.customDarts];
+  allDarts.forEach(d=>{
+    const de=Math.max(1,Math.round(d.depth));
+    const df=bigPow(DART_P,de);
+    if(fold%df===0n) fold/=df;
+    factors.push({label:`DART ${d.type}`,prime:DART_P,exp:-de});
+  });
+  // seams: multiply by 103^complexity
+  const allSeams=[...t.seams,...state.customSeams];
+  allSeams.forEach(s=>{
+    const sf=bigPow(SEAM_P,s[3]);
+    fold*=sf;
+    factors.push({label:`SEAM ${s[0]}→${s[1]}`,prime:SEAM_P,exp:s[3]});
+  });
+  // material
+  fold*=MATERIALS[state.material].fold;
+  factors.push({label:`MAT ${MATERIALS[state.material].name}`,prime:Number(MATERIALS[state.material].fold),exp:1});
+  // ease wound product
+  const eK=state.ease.reduce((a,b)=>a+b,0);
+  const easeExp=Math.round(eK*10);
+  fold*=bigPow(19,easeExp);
+  factors.push({label:'EASE κ-sum',prime:19,exp:easeExp});
+  return {fold,factors};
+}
+
+// ---- Rendering ----
+function render(){
+  const t=TEMPLATES[state.g];
+  const W=1000,H=600;
+  let html='';
+
+  // background grid
+  html+=`<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+    <path d="M20 0H0V20" fill="none" stroke="#1a1923" stroke-width=".5"/></pattern></defs>
+    <rect width="${W}" height="${H}" fill="url(#grid)"/>`;
+
+  if(state.view==='flat'){
+    // draw each panel
+    t.panels.forEach((p,idx)=>{
+      const pts=p.poly.map(([x,y])=>[x*W,y*H]);
+      const d=pts.map((pt,i)=>(i?'L':'M')+pt[0]+' '+pt[1]).join(' ')+'Z';
+      const sel=state.selected===p.id?'sel':'';
+      const c=getComputedStyle(document.documentElement).getPropertyValue(RING_COLORS[p.ring]).trim();
+      html+=`<path class="piece ${sel}" d="${d}" data-id="${p.id}" style="stroke:${c}"/>`;
+      // centroid for label
+      const cx=pts.reduce((a,b)=>a+b[0],0)/pts.length;
+      const cy=pts.reduce((a,b)=>a+b[1],0)/pts.length;
+      html+=`<text class="plbl" x="${cx}" y="${cy}">${p.label}</text>`;
+      html+=`<text class="lbl" x="${cx}" y="${cy+14}">R${p.ring}·${PRIMES[p.ring]}^${state.rings[p.ring]+state.size}</text>`;
+      // grain line (vertical through centroid)
+      html+=`<line class="grain" x1="${cx}" y1="${cy-30}" x2="${cx}" y2="${cy+30}"/>
+             <polygon points="${cx-3},${cy-27} ${cx+3},${cy-27} ${cx},${cy-33}" fill="var(--grain)"/>
+             <polygon points="${cx-3},${cy+27} ${cx+3},${cy+27} ${cx},${cy+33}" fill="var(--grain)"/>`;
+    });
+    // darts
+    const allDarts=[...t.darts,...state.customDarts];
+    allDarts.forEach(d=>{
+      const x=d.pos[0]*W, y=d.pos[1]*H, len=d.len*H, dep=d.depth*6;
+      html+=`<path class="dart" d="M${x-dep} ${y} L${x} ${y+len} L${x+dep} ${y} Z"/>
+             <text class="lbl" x="${x}" y="${y-4}" text-anchor="middle">107⁻${Math.round(d.depth)}</text>`;
+    });
+    // seam markers between pieces (connector lines at centroids)
+    const allSeams=[...t.seams,...state.customSeams];
+    allSeams.forEach(s=>{
+      const a=t.panels.find(p=>p.id===s[0]);
+      const b=t.panels.find(p=>p.id===s[1]);
+      if(!a||!b) return;
+      const ca=centroid(a.poly,W,H), cb=centroid(b.poly,W,H);
+      html+=`<line class="seam-mark" x1="${ca[0]}" y1="${ca[1]}" x2="${cb[0]}" y2="${cb[1]}"
+             stroke-dasharray="2 3" opacity=".4"/>`;
+    });
+  } else if(state.view==='drape'){
+    // stylized 3D preview: draw a simple body silhouette with garment draped
+    html+=draw3DPreview(t,W,H);
+  } else if(state.view==='layout'){
+    // nesting layout on fabric
+    html+=drawLayout(t,W,H);
+  }
+
+  svg.innerHTML=html;
+  svg.querySelectorAll('.piece').forEach(el=>{
+    el.onclick=()=>{state.selected=el.dataset.id; render(); updateSidebar();};
+  });
+  updateSidebar();
+}
+
+function centroid(poly,W,H){
+  const pts=poly.map(([x,y])=>[x*W,y*H]);
+  const cx=pts.reduce((a,b)=>a+b[0],0)/pts.length;
+  const cy=pts.reduce((a,b)=>a+b[1],0)/pts.length;
+  return [cx,cy];
+}
+
+function draw3DPreview(t,W,H){
+  // body silhouette ring-colored
+  const cx=W/2, baseY=50;
+  let s='';
+  // head
+  s+=`<circle cx="${cx}" cy="${baseY+30}" r="28" fill="none" stroke="var(--mute)" stroke-width="1"/>`;
+  // neck R3
+  s+=`<rect x="${cx-15}" y="${baseY+55}" width="30" height="18" fill="var(--ring3)" opacity=".3" stroke="var(--ring3)"/>`;
+  // shoulders R1
+  s+=`<path d="M${cx-90} ${baseY+80} Q${cx} ${baseY+70} ${cx+90} ${baseY+80}" fill="var(--ring1)" opacity=".3" stroke="var(--ring1)" stroke-width="2"/>`;
+  // torso R0 (width from ring exp)
+  const torsoW=40+state.rings[0]*12+state.ease[0]*100;
+  s+=`<path d="M${cx-torsoW} ${baseY+80} L${cx-torsoW+10} ${baseY+240} L${cx+torsoW-10} ${baseY+240} L${cx+torsoW} ${baseY+80} Z"
+      fill="var(--ring0)" opacity=".35" stroke="var(--ring0)" stroke-width="2"/>`;
+  // sleeves R2
+  const slvL=60+state.rings[2]*20;
+  s+=`<path d="M${cx-90} ${baseY+80} L${cx-90-slvL*.3} ${baseY+80+slvL} L${cx-60-slvL*.3} ${baseY+90+slvL} L${cx-70} ${baseY+100} Z"
+      fill="var(--ring2)" opacity=".35" stroke="var(--ring2)" stroke-width="2"/>`;
+  s+=`<path d="M${cx+90} ${baseY+80} L${cx+90+slvL*.3} ${baseY+80+slvL} L${cx+60+slvL*.3} ${baseY+90+slvL} L${cx+70} ${baseY+100} Z"
+      fill="var(--ring2)" opacity=".35" stroke="var(--ring2)" stroke-width="2"/>`;
+  // waist R4
+  const waistW=torsoW*.85+state.ease[4]*80;
+  s+=`<path d="M${cx-waistW} ${baseY+240} L${cx-waistW-20} ${baseY+340} L${cx+waistW+20} ${baseY+340} L${cx+waistW} ${baseY+240} Z"
+      fill="var(--ring4)" opacity=".35" stroke="var(--ring4)" stroke-width="2"/>`;
+  // legs R5
+  const legL=80+state.rings[5]*25;
+  if(state.rings[5]>0){
+    s+=`<path d="M${cx-waistW-20} ${baseY+340} L${cx-waistW} ${baseY+340+legL} L${cx-5} ${baseY+340+legL} L${cx-10} ${baseY+340} Z"
+        fill="var(--ring5)" opacity=".35" stroke="var(--ring5)" stroke-width="2"/>`;
+    s+=`<path d="M${cx+waistW+20} ${baseY+340} L${cx+waistW} ${baseY+340+legL} L${cx+5} ${baseY+340+legL} L${cx+10} ${baseY+340} Z"
+        fill="var(--ring5)" opacity=".35" stroke="var(--ring5)" stroke-width="2"/>`;
+  } else {
+    // skirt/dress hem
+    const hemW=waistW+40+state.rings[4]*10;
+    s+=`<path d="M${cx-waistW-20} ${baseY+340} L${cx-hemW} ${baseY+340+legL} L${cx+hemW} ${baseY+340+legL} L${cx+waistW+20} ${baseY+340} Z"
+        fill="var(--ring4)" opacity=".3" stroke="var(--ring4)" stroke-width="2"/>`;
+  }
+  // label
+  s+=`<text x="${cx}" y="${H-30}" class="plbl" text-anchor="middle">${t.name.toUpperCase()} · DRAPED</text>`;
+  s+=`<text x="${cx}" y="${H-14}" class="lbl" text-anchor="middle">ease κ-sum = ${state.ease.reduce((a,b)=>a+b,0).toFixed(2)} · target 1/φ ≈ 0.062</text>`;
+  return s;
+}
+
+function drawLayout(t,W,H){
+  // fabric width bands
+  const fabricW=160; // cm
+  const pxPerCm=3;
+  const fabH=H-60;
+  let s=`<rect x="20" y="20" width="${fabricW*pxPerCm}" height="${fabH}" fill="#1a1923" stroke="var(--mute)" stroke-dasharray="4 3"/>`;
+  s+=`<text x="${20+fabricW*pxPerCm/2}" y="${fabH+40}" class="lbl" text-anchor="middle">FABRIC WIDTH 160cm →</text>`;
+  // nest panels
+  let curX=30, curY=30, rowH=0, totalArea=0, usedArea=0;
+  t.panels.forEach(p=>{
+    const minX=Math.min(...p.poly.map(pt=>pt[0]))*180;
+    const minY=Math.min(...p.poly.map(pt=>pt[1]))*180;
+    const maxX=Math.max(...p.poly.map(pt=>pt[0]))*180;
+    const maxY=Math.max(...p.poly.map(pt=>pt[1]))*180;
+    const w=(maxX-minX), h=(maxY-minY);
+    if(curX+w>20+fabricW*pxPerCm){curX=30;curY+=rowH+8;rowH=0;}
+    const tx=curX-minX, ty=curY-minY;
+    const d=p.poly.map((pt,i)=>(i?'L':'M')+(pt[0]*180+tx)+' '+(pt[1]*180+ty)).join(' ')+'Z';
+    const c=getComputedStyle(document.documentElement).getPropertyValue(RING_COLORS[p.ring]).trim();
+    s+=`<path d="${d}" fill="${c}" fill-opacity=".2" stroke="${c}" stroke-width="1"/>`;
+    s+=`<text class="lbl" x="${curX+w/2}" y="${curY+h/2}" text-anchor="middle">${p.label}</text>`;
+    curX+=w+8;
+    if(h>rowH) rowH=h;
+    usedArea+=polyArea(p.poly)*180*180;
+    totalArea+=w*h;
+  });
+  const util=usedArea/totalArea;
+  s+=`<text x="${W-20}" y="${H-30}" class="lbl" text-anchor="end">UTILIZATION: ${(util*100).toFixed(1)}% · W = 107^${Math.max(1,Math.round(-2*Math.log2(util)))}</text>`;
+  return s;
+}
+
+function polyArea(poly){
+  let a=0;
+  for(let i=0;i<poly.length;i++){
+    const [x1,y1]=poly[i], [x2,y2]=poly[(i+1)%poly.length];
+    a+=x1*y2-x2*y1;
+  }
+  return Math.abs(a)/2;
+}
+
+// ---- Sidebar ----
+function updateSidebar(){
+  const {fold,factors}=computeFold();
+  const fs=fold.toString();
+  $('foldBox').textContent=fs.length>60?fs.slice(0,30)+'…'+fs.slice(-28)+` (${fs.length} digits)`:fs;
+
+  $('factors').innerHTML=factors.map(f=>
+    `<div class="kv"><span>${f.label}</span><span>${f.prime}<sup>${f.exp}</sup></span></div>`
+  ).join('');
+
+  const t=TEMPLATES[state.g];
+  const darts=t.darts.length+state.customDarts.length;
+  const seams=t.seams.length+state.customSeams.length;
+  const kSum=state.ease.reduce((a,b)=>a+b,0);
+  const kAvg=kSum/state.ease.filter(x=>x>0).length;
+  const primordial=510510n;
+  const touchesAllRings=state.rings.every(r=>r>0);
+  $('metrics').innerHTML=`
+    <div class="kv"><span>panels</span><span>${t.panels.length}</span></div>
+    <div class="kv"><span>darts</span><span>${darts}</span></div>
+    <div class="kv"><span>seams</span><span>${seams}</span></div>
+    <div class="kv"><span>κ mean</span><span>${kAvg.toFixed(3)}</span></div>
+    <div class="kv"><span>κ target (1/φ·.1)</span><span>0.062</span></div>
+    <div class="kv"><span>size</span><span>Δ${state.size>=0?'+':''}${state.size/2}</span></div>
+    <div class="kv"><span>material</span><span>${MATERIALS[state.material].name}</span></div>
+    <div class="kv"><span>touches 510510</span><span>${touchesAllRings?'✓ all rings':'partial'}</span></div>
+  `;
+
+  if(state.selected){
+    const p=t.panels.find(x=>x.id===state.selected);
+    if(p){
+      const area=polyArea(p.poly).toFixed(3);
+      const exp=state.rings[p.ring]+state.size;
+      $('sel').innerHTML=`
+        <div class="kv"><span>id</span><span>${p.id}</span></div>
+        <div class="kv"><span>label</span><span>${p.label}</span></div>
+        <div class="kv"><span>ring</span><span>R${p.ring} ${RING_NAMES[p.ring]}</span></div>
+        <div class="kv"><span>prime</span><span>${PRIMES[p.ring]}</span></div>
+        <div class="kv"><span>exponent</span><span>${exp}</span></div>
+        <div class="kv"><span>panel fold</span><span>${PRIMES[p.ring]}<sup>${exp}</sup> = ${bigPow(PRIMES[p.ring],Math.max(0,exp))}</span></div>
+        <div class="kv"><span>norm area</span><span>${area}</span></div>
+        <div class="kv"><span>ease κ</span><span>${state.ease[p.ring].toFixed(3)}</span></div>
+      `;
+    }
+  } else {
+    $('sel').innerHTML='<span style="color:var(--mute)">click a panel on canvas</span>';
+  }
+
+  const recipe=[];
+  t.seams.forEach((s,i)=>recipe.push(`${i+1}. JOIN ${s[0]}→${s[1]} · ${s[2]} · op=103^${s[3]}`));
+  t.darts.forEach((d,i)=>recipe.push(`D${i+1}. DART ${d.piece} · ${d.type} · op=107^-${Math.round(d.depth)}`));
+  recipe.push(`F. ATTACH material(${MATERIALS[state.material].name})`);
+  recipe.push(`G. ESCURE verify garment_fold`);
+  $('recipe').innerHTML=recipe.join('<br>');
+
+  $('hud').textContent=`${t.name.toUpperCase()} · ${t.panels.length} panels · ${darts} darts · ${seams} seams · view: ${state.view}`;
+  $('meta').innerHTML=`<b>${t.name}</b> · ring coverage: ${state.rings.map((r,i)=>r>0?PRIMES[i]:'·').join(' ')}<br>
+    darts remove curvature (anti-prime 107)<br>
+    seams join panels (prime 103)<br>
+    fold = Π(pᵢ^eᵢ) · 107⁻ᴰ · 103ˢ · mat · 19^κ`;
+}
+
+// ---- Events ----
+$('garment').onchange=e=>{
+  state.g=e.target.value;
+  state.rings=[...TEMPLATES[state.g].rings];
+  state.selected=null;
+  state.customDarts=[]; state.customSeams=[];
+  buildRings(); render();
+};
+$('size').onchange=e=>{state.size=+e.target.value; render();};
+$('material').onchange=e=>{state.material=e.target.value; render();};
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  state.view=t.dataset.view;
+  render();
+});
+$('addDart').onclick=()=>{
+  if(!state.selected){alert('select a panel first');return;}
+  const p=TEMPLATES[state.g].panels.find(x=>x.id===state.selected);
+  const c=centroid(p.poly,1,1);
+  state.customDarts.push({piece:state.selected,ring:p.ring,pos:[c[0],c[1]],depth:1,len:.08,type:'CUSTOM'});
+  render();
+};
+$('addSeam').onclick=()=>{
+  const panels=TEMPLATES[state.g].panels;
+  if(panels.length<2) return;
+  const a=panels[Math.floor(Math.random()*panels.length)];
+  let b=panels[Math.floor(Math.random()*panels.length)];
+  while(b.id===a.id) b=panels[Math.floor(Math.random()*panels.length)];
+  state.customSeams.push([a.id,b.id,'CUSTOM',1]);
+  render();
+};
+$('export').onclick=()=>{
+  const {fold,factors}=computeFold();
+  const t=TEMPLATES[state.g];
+  const data={
+    magic:'BFAB',version:1,
+    garment_type:state.g, garment_name:t.name,
+    body_bloom:state.rings, ease:state.ease,
+    size_delta:state.size, material:state.material,
+    panels:t.panels, darts:[...t.darts,...state.customDarts],
+    seams:[...t.seams,...state.customSeams],
+    fold:fold.toString(), factors,
+    escure_tag:(fold%4294967296n).toString(16),
+    timestamp:new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`${state.g}-${Date.now()}.bfabric.json`;
+  a.click(); URL.revokeObjectURL(url);
+};
+
+buildRings();
+render();
+</script>
+</body>
+</html>
